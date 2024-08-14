@@ -541,8 +541,18 @@ const decodeLogs = async () => {
                 );
                 console.log('Decoded Log:', decodedLog);
 
-                const valueInEther = web3.utils.fromWei(decodedLog.value.toString(), 'ether');
-                console.log('Value in Ether:', valueInEther);
+                // Extracting information from decoded log
+                const transactionHash = log.transactionHash;
+                const blockNumber = parseInt(log.blockNumber, 16); // Convert from hex
+                const fromAddress = '0x' + decodedLog.from.toLowerCase();
+                const toAddress = '0x' + decodedLog.to.toLowerCase();
+                const amount = web3.utils.fromWei(decodedLog.value.toString(), 'ether');
+
+                console.log('Transaction Hash:', transactionHash);
+                console.log('Block Number:', blockNumber);
+                console.log('From Address:', fromAddress);
+                console.log('To Address:', toAddress);
+                console.log('Amount in Ether:', amount);
             } else {
                 console.log('Event not found in ABI for log:', log);
             }
