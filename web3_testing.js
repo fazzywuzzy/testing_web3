@@ -2,9 +2,11 @@ require('dotenv').config();
 
 const apiKey = process.env.API_KEY;
 const { Web3 } = require('web3');
+const { ethers } = require('ethers');
 const web3 = new Web3();
-
 const axios = require('axios');
+
+const NULL_ADDRESS = ethers.ZeroAddress;
 
 const getBlockNumber = async (timestamp) => {
     const blockNumberURL = `https://api.bscscan.com/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before&apikey=${apiKey}`;
@@ -544,15 +546,25 @@ const decodeLogs = async () => {
                 // Extracting information from decoded log
                 const transactionHash = log.transactionHash;
                 const blockNumber = parseInt(log.blockNumber, 16); // Convert from hex
-                const fromAddress = '0x' + decodedLog.from.toLowerCase();
-                const toAddress = '0x' + decodedLog.to.toLowerCase();
+                const fromAddress = decodedLog.from.toLowerCase();
+                const toAddress = decodedLog.to.toLowerCase();
                 const amount = web3.utils.fromWei(decodedLog.value.toString(), 'ether');
+                // Determine if it's a mint or burn event or transfer
+                let operationType;
+                if (fromAddress === NULL_ADDRESS) {
+                    operationType = 'Mint';
+                } else if (toAddress === NULL_ADDRESS) {
+                    operationType = 'Burn';
+                } else {
+                    operationType = event.name;
+                }
 
                 console.log('Transaction Hash:', transactionHash);
                 console.log('Block Number:', blockNumber);
                 console.log('From Address:', fromAddress);
                 console.log('To Address:', toAddress);
                 console.log('Amount in Ether:', amount);
+                console.log('Event Type:', operationType);
             } else {
                 console.log('Event not found in ABI for log:', log);
             }
