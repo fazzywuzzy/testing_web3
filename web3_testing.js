@@ -1,5 +1,56 @@
+require('dotenv').config();
+
+const apiKey = process.env.API_KEY;
 const { Web3 } = require('web3');
 const web3 = new Web3();
+
+const axios = require('axios');
+
+const getBlockNumber = async (timestamp) => {
+    const blockNumberURL = `https://api.bscscan.com/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before&apikey=${apiKey}`;
+
+    try {
+        const response = await axios.get(blockNumberURL);
+        const data = response.data;
+        if (data.status === "1" && data.result) {
+            return data.result;
+        } else {
+            console.log(data);
+            throw new Error("Failed to retrieve block number");
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+}
+
+const getLogs = async (toBlock, fromBlock = 0, addresses) => {
+    const topic0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+    const topic0_1_opr = "and";
+    const topic1 = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    const addressesParam = addresses.join(',');
+
+    const logsURL = `https://api.bscscan.com/api?module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${addressesParam}&topic0=${topic0}&topic0_1_opr=${topic0_1_opr}&topic1=${topic1}&apikey=${apiKey}`;
+
+    try {
+        const response = await axios.get(logsURL);
+        const data = response.data;
+        if (data.status === "1" && data.result) {
+            return data.result;
+        } else {
+            console.log(data);
+            throw new Error("Failed to retrieve logs");
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+}
+
+const timestamp = Math.floor(Date.now() / 1000);
+console.log(timestamp);
+const addresses = ['0x2170Ed0880ac9A755fd29B2688956BD959F933F8']; // ETH_BSC
+
 
 // ABI for ETH BSC
 const abi = [
@@ -463,64 +514,61 @@ const abi = [
     }
 ];
 
-// Sample log entry -- from ETH BSC can get it from API
-// based on this:
-/** @dev Creates `amount` tokens and assigns them to `account`, increasing
-  * the total supply.
-  *
-  * Emits a {Transfer} event with `from` set to the zero address.
-  *
-  * Requirements
-  *
-  * - `to` cannot be the zero address.
-  */
-//  function _mint(address account, uint256 amount) internal {
-//     require(account != address(0), "BEP20: mint to the zero address");
+const decodeLogs = async () => {
+    const timestamp = Math.floor(Date.now() / 1000);
 
-//     _totalSupply = _totalSupply.add(amount);
-//     _balances[account] = _balances[account].add(amount);
-//     emit Transfer(address(0), account, amount);
-//   }
-const log =
-{
-    "address": "0x2170ed0880ac9a755fd29b2688956bd959f933f8",
-    "topics": [
-        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
-        "0x00000000000000000000000088efdac29e3ba290512e26c04908692ae9810566"
-    ],
-    "data": "0x00000000000000000000000000000000000000000000065a4da25d3016c00000",
-    "blockNumber": "0x4f98f",
-    "blockHash": "0x462ec2d22f78e193380f160beaa962df1685208524753feb308fc45a63b30983",
-    "timeStamp": "0x5f58b851",
-    "gasPrice": "0x4a817c800",
-    "gasUsed": "0x116a59",
-    "logIndex": "0x1",
-    "transactionHash": "0x2f3cd1b65f0db3e42ab566ac3bcfbbf2281a0ddff652b7291dde662f777cc2c2",
-    "transactionIndex": "0x"
-}
+    try {
+        const blockNumber = await getBlockNumber(timestamp);
+        console.log('Latest Block Number:', blockNumber);
 
-// Create an interface for decoding
-const contract = new web3.eth.Contract(abi);
+        const logs = await getLogs(blockNumber, 0, addresses);
+        console.log('Logs:', logs);
 
-// Find the event in the ABI that matches the log's topic[0]
-const eventSignature = log.topics[0];
-const event = abi.find(e => {
-    if (e.type === 'event') {
-        return web3.eth.abi.encodeEventSignature(e) === eventSignature;
+        logs.forEach(log => {
+            const eventSignature = log.topics[0];
+            const event = abi.find(e => {
+                if (e.type === 'event') {
+                    return web3.eth.abi.encodeEventSignature(e) === eventSignature;
+                }
+                return false;
+            });
+
+            if (event) {
+                const decodedLog = web3.eth.abi.decodeLog(
+                    event.inputs,
+                    log.data,
+                    log.topics.slice(1) // Remove the first topic which is the event signature
+                );
+                console.log('Decoded Log:', decodedLog);
+
+                const valueInEther = web3.utils.fromWei(decodedLog.value.toString(), 'ether');
+                console.log('Value in Ether:', valueInEther);
+            } else {
+                console.log('Event not found in ABI for log:', log);
+            }
+        });
+    } catch (error) {
+        console.error('Error:', error);
     }
-    return false;
-});
-
-if (event) {
-    const decodedLog = web3.eth.abi.decodeLog(
-        event.inputs,
-        log.data,
-        log.topics.slice(1) // Remove the first topic which is the event signature
-    );
-    console.log(decodedLog);
-    const valueInEther = web3.utils.fromWei(decodedLog.value.toString(), 'ether');
-    console.log('Value in Ether:', valueInEther);
-} else {
-    console.log('Event not found in ABI');
 }
+
+decodeLogs();
+
+// // Sample log entry -- from ETH BSC can get it from API
+// // based on this:
+// /** @dev Creates `amount` tokens and assigns them to `account`, increasing
+//   * the total supply.
+//   *
+//   * Emits a {Transfer} event with `from` set to the zero address.
+//   *
+//   * Requirements
+//   *
+//   * - `to` cannot be the zero address.
+//   */
+// //  function _mint(address account, uint256 amount) internal {
+// //     require(account != address(0), "BEP20: mint to the zero address");
+
+// //     _totalSupply = _totalSupply.add(amount);
+// //     _balances[account] = _balances[account].add(amount);
+// //     emit Transfer(address(0), account, amount);
+// //   }
