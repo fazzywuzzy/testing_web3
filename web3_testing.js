@@ -28,11 +28,14 @@ const getBlockNumber = async (timestamp) => {
 
 const getLogs = async (toBlock, fromBlock = 0, addresses) => {
     const topic0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-    const topic0_1_opr = "and";
+    const topic0_1_opr = "or";
     const topic1 = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    const topic1_2_opr = "or";
+    const topic2 = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
     const addressesParam = addresses.join(',');
 
-    const logsURL = `https://api.bscscan.com/api?module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${addressesParam}&topic0=${topic0}&topic0_1_opr=${topic0_1_opr}&topic1=${topic1}&apikey=${apiKey}`;
+    const logsURL = `https://api.bscscan.com/api?module=logs&action=getLogs&fromBlock=${fromBlock}&toBlock=${toBlock}&address=${addressesParam}&topic0=${topic0}&topic0_1_opr=${topic0_1_opr}&topic1=${topic1}&topic1_2_opr=${topic1_2_opr}&topic2=${topic2}&apikey=${apiKey}`;
 
     try {
         const response = await axios.get(logsURL);
@@ -517,6 +520,8 @@ const abi = [
 ];
 
 const decodeLogs = async () => {
+    const currentDate = new Date();
+    const lastMonthDate = new Date(currentDate.setMonth(currentDate.getMonth() - 1));
     const timestamp = Math.floor(Date.now() / 1000);
 
     try {
@@ -524,7 +529,7 @@ const decodeLogs = async () => {
         console.log('Latest Block Number:', blockNumber);
 
         const logs = await getLogs(blockNumber, 0, addresses);
-        console.log('Logs:', logs);
+        // console.log('Logs:', logs);
 
         logs.forEach(log => {
             const eventSignature = log.topics[0];
@@ -535,7 +540,8 @@ const decodeLogs = async () => {
                 return false;
             });
 
-            if (event) {
+            if (event && event.name === 'Transfer') {
+                // console.log('Event:', event);
                 const decodedLog = web3.eth.abi.decodeLog(
                     event.inputs,
                     log.data,
