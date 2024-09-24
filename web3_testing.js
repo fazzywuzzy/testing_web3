@@ -574,16 +574,17 @@ const decodeLogs = async () => {
                 console.log('From Address:', fromAddress);
                 console.log('To Address:', toAddress);
                 console.log('Amount in Ether:', amount);
+                console.log('Event Type:', operationType);
 
                 // Store the log details in the decodedLogs array
                 decodedLogs.push({
                     transactionHash,
                     blockNumber,
+                    operationType,
                     fromAddress,
                     toAddress,
                     amount,
                 });
-                console.log('Event Type:', operationType);
             } else {
                 console.log('Event not found in ABI for log:', log);
             }
