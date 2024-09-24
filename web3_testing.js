@@ -1,3 +1,5 @@
+const fs = require('fs');
+const { Parser } = require('json2csv');
 require('dotenv').config();
 
 const apiKey = process.env.API_KEY;
@@ -520,7 +522,9 @@ const abi = [
 const decodeLogs = async () => {
     const currentDate = new Date();
     const lastMonthDate = new Date(currentDate.setMonth(currentDate.getMonth() - 1));
-    const timestamp = Math.floor(Date.now() / 1000);
+    const timestamp = Math.floor(lastMonthDate / 1000);
+
+    const decodedLogs = [];
 
     try {
         const blockNumber = await getBlockNumber(timestamp);
@@ -559,10 +563,27 @@ const decodeLogs = async () => {
                 console.log('From Address:', fromAddress);
                 console.log('To Address:', toAddress);
                 console.log('Amount in Ether:', amount);
+
+                // Store the log details in the decodedLogs array
+                decodedLogs.push({
+                    transactionHash,
+                    blockNumber,
+                    fromAddress,
+                    toAddress,
+                    amount,
+                });
             } else {
                 console.log('Event not found in ABI for log:', log);
             }
         });
+
+        // Convert logs to CSV format
+        const json2csvParser = new Parser();
+        const csv = json2csvParser.parse(decodedLogs);
+
+        // Write CSV data to a file
+        fs.writeFileSync('decoded_logs.csv', csv);
+        console.log('Decoded logs saved to decoded_logs.csv');
     } catch (error) {
         console.error('Error:', error);
     }
